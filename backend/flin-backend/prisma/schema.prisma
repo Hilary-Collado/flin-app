@@ -1,0 +1,82 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// prisma/schema.prisma
+  //output   = "../generated/prisma"
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+/** Organizaciones (empresa)  **/
+model Organization {
+  OrganizationId Int       @id @default(autoincrement())
+  Name           String
+  Industry       String     // "AUTO" | "BEAUTY" | etc.
+  CreatedAt      DateTime   @default(now())
+
+  Users          Users[]
+  Clients        Client[]
+  Services       Service[]
+}
+
+/** Usuarios (pertenecen a una organización) **/
+model Users {
+  UserId         Int           @id @default(autoincrement())
+  Email          String        @unique
+  PasswordHash   String
+  CreatedAt      DateTime      @default(now())
+  UpdatedAt      DateTime      @updatedAt
+
+  Organization   Organization  @relation(fields: [OrganizationId], references: [OrganizationId])
+  OrganizationId Int
+
+  Clients        Client[]      @relation("CreatedByUser")
+}
+
+/** Catálogo de servicios por organización (para no usar strings sueltos) **/
+model Service {
+  ServiceId      Int           @id @default(autoincrement())
+  Code           String
+  Name           String
+
+  Organization   Organization  @relation(fields: [OrganizationId], references: [OrganizationId])
+  OrganizationId Int
+
+  Clients        Client[]      @relation("ClientService")
+
+  @@unique([OrganizationId, Code])
+}
+
+/** Clientes **/
+model Client {
+  ClientId        Int           @id @default(autoincrement())
+  Name            String
+  Phone           String
+  Notes           String?
+  AvatarUrl       String?
+  Status          String        @default("PENDING") // PENDING | IN_PROGRESS | DONE
+  CreatedAt       DateTime      @default(now())
+  UpdatedAt       DateTime      @updatedAt
+
+  // Organización a la que pertenece el cliente
+  Organization    Organization  @relation(fields: [OrganizationId], references: [OrganizationId])
+  OrganizationId  Int
+
+  // Quién creó el registro
+  CreatedBy       Users?        @relation("CreatedByUser", fields: [CreatedByUserId], references: [UserId])
+  CreatedByUserId Int?
+
+  // Tipo de servicio elegido (del catálogo de la org, opcional)
+  Service         Service?      @relation("ClientService", fields: [ServiceId], references: [ServiceId])
+  ServiceId       Int?
+
+  @@index([OrganizationId])
+  @@index([Status])
+  @@index([CreatedAt])
+}
